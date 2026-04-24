@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadGuard Pro | Eng. Ahmed Hany Elattar</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        :root { 
+            --primary: #00d2ff; 
+            --danger: #ff4b2b; 
+            --bg: #050a14; 
+            --glass: rgba(15, 23, 42, 0.7);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Cairo', sans-serif; 
+            background: var(--bg); 
+            color: #fff; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+        
+        header { 
+            background: #0f172a; 
+            padding: 15px 30px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid var(--primary); 
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .dev-tag { color: var(--primary); font-weight: 900; font-size: 0.8rem; letter-spacing: 1px; text-transform: uppercase; }
+
+        .dashboard { 
+            display: grid; 
+            grid-template-columns: 350px 1fr; 
+            flex: 1; 
+            overflow: hidden; 
+        }
+
+        /* Glassmorphism Sidebar */
+        .sidebar { 
+            background: var(--glass); 
+            padding: 25px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+            border-left: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            z-index: 10;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        }
+
+        .card { 
+            background: rgba(255,255,255,0.05); 
+            padding: 20px; 
+            border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.1);
+            border-right: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .speed-display { 
+            font-size: 3.5rem; 
+            font-weight: 900; 
+            color: var(--primary); 
+            text-align: center; 
+            text-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+        }
+        
+        .btn { 
+            background: linear-gradient(135deg, var(--primary), #3a7bd5); 
+            color: white; 
+            border: none; 
+            padding: 15px; 
+            border-radius: 15px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            width: 100%; 
+            margin-bottom: 12px;
+            font-family: 'Cairo';
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:hover { transform: scale(1.02); filter: brightness(1.1); }
+
+        #map { width: 100%; height: 100%; background: #0b111d; }
+
+        /* Animation for danger */
+        .flash-red { animation: flash-screen 0.5s infinite alternate; }
+        @keyframes flash-screen { 
+            from { box-shadow: inset 0 0 0px transparent; } 
+            to { box-shadow: inset 0 0 80px rgba(255, 75, 43, 0.3); } 
+        }
+
+        .swal2-popup { border-radius: 20px !important; font-family: 'Cairo' !important; }
+    </style>
+</head>
+<body id="mainBody">
+
+    <header>
+        <div style="font-weight:900; font-size: 1.2rem;">ROADGUARD GPS <span style="color:var(--primary)">PRO</span></div>
+        <div class="dev-tag">BY: AHMED HANY ELATTAR</div>
+    </header>
+
+    <div class="dashboard">
+        <div class="sidebar">
+            <div class="card">
+                <div style="font-size:0.8rem; color:#94a3b8; text-align:center; margin-bottom: 5px;">السرعة الحالية (كم/س)</div>
+                <div class="speed-display" id="spNum">0</div>
+            </div>
+
+            <div class="card">
+                <div style="font-size:0.8rem; color:#94a3b8; margin-bottom: 5px;"><i class="fas fa-map-marker-alt"></i> أقرب نقطة خطر</div>
+                <div id="locName" style="color:var(--primary); font-weight:bold; font-size: 1.1rem;">--</div>
+                <div id="distNum" style="font-size:0.9rem; margin-top: 5px; color: #cbd5e1;">0 متر</div>
+            </div>
+
+            <div style="margin-top:10px;">
+                <button class="btn" onclick="startSim('belbeis')">
+                    <i class="fas fa-route"></i> تتبع طريق بلبيس
+                </button>
+                <button class="btn" style="filter:hue-rotate(220deg)" onclick="startSim('faqous')">
+                    <i class="fas fa-road"></i> تتبع طريق فاقوس
+                </button>
+            </div>
+
+            <div style="margin-top:auto; font-size:0.75rem; color:#64748b; text-align:center; line-height: 1.6;">
+                حقوق الطبع محفوظة &copy; 2026<br>
+                <b style="color:var(--primary)">Eng. Ahmed Hany Elattar</b><br>
+                GIS & Geomatics Specialist
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // إعداد الصوت
+        const alertAudio = new Audio('https://translate.google.com/translate_tts?ie=UTF-8&q=%D8%A7%D9%86%D8%AA%D8%A8%D9%87%20%D9%85%D9%86%D8%B7%D9%82%D8%A9%20%D8%AE%D8%B7%D8%B1&tl=ar&client=tw-ob');
+        let lastPlay = 0;
+        let isAlertShowing = false;
+
+        const map = L.map('map', { zoomControl: false }).setView([30.5, 31.7], 10);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        const spots = [
+            { name: "ميدان الطيارة", lat: 30.370580, lng: 31.560652, r: 1000 },
+            { name: "تقاطع الروبيكي", lat: 30.319318, lng: 31.656503, r: 900 },
+            { name: "منحنى العاشر", lat: 30.242886, lng: 31.718091, r: 800 },
+            { name: "كوبري فاقوس", lat: 30.735, lng: 31.800, r: 800 },
+            { name: "مفارق الحسينية", lat: 30.850, lng: 31.910, r: 1000 }
+        ];
+
+        spots.forEach(s => {
+            L.circle([s.lat, s.lng], { 
+                color: '#ff4b2b', weight: 1, fillColor: '#ff4b2b', fillOpacity: 0.1, radius: s.r 
+            }).addTo(map);
+        });
+
+        let car = L.marker([30.55, 31.40]).addTo(map);
+        let routeLine = L.polyline([], { color: '#00d2ff', weight: 4, opacity: 0.7 }).addTo(map);
+
+        const paths = {
+            belbeis: [[30.55, 31.40], [30.370580, 31.560652], [30.319318, 31.656503], [30.242886, 31.718091]],
+            faqous: [[30.60, 31.70], [30.735, 31.800], [30.850, 31.910], [30.95, 32.00]]
+        };
+
+        let animationFrameId = null;
+
+        function startSim(id) {
+            alertAudio.play().then(() => alertAudio.pause());
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            routeLine.setLatLngs([]);
+            
+            let seg = 0, progress = 0, speed = 0;
+            const route = paths[id];
+
+            const animate = () => {
+                if (seg >= route.length - 1) return;
+                const start = route[seg], end = route[seg+1];
+                const lat = start[0] + (end[0] - start[0]) * (progress / 400);
+                const lng = start[1] + (end[1] - start[1]) * (progress / 400);
+
+                car.setLatLng([lat, lng]);
+                routeLine.addLatLng([lat, lng]);
+                map.panTo([lat, lng], { animate: false });
+
+                speed = updateSafety(lat, lng, speed);
+                document.getElementById('spNum').innerText = Math.round(speed);
+
+                progress++;
+                if (progress > 400) { progress = 0; seg++; }
+                animationFrameId = requestAnimationFrame(animate);
+            };
+            animate();
+        }
+
+        function updateSafety(lat, lng, currentSpeed) {
+            let nearest = spots[0], minD = Infinity;
+            let isDanger = false;
+
+            spots.forEach(s => {
+                let d = map.distance([lat, lng], [s.lat, s.lng]);
+                if (d < minD) { minD = d; nearest = s; }
+                if (d < s.r) isDanger = true;
+            });
+
+            document.getElementById('locName').innerText = nearest.name;
+            document.getElementById('distNum').innerText = Math.round(minD) + " متر";
+
+            if (isDanger) {
+                if (!isAlertShowing) {
+                    isAlertShowing = true;
+                    Swal.fire({
+                        title: 'منطقة خطر!',
+                        text: `خفف السرعة.. أنت تقترب من ${nearest.name}`,
+                        icon: 'warning',
+                        toast: true,
+                        position: 'top-start',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true,
+                        background: '#1e293b',
+                        color: '#fff',
+                        didClose: () => { isAlertShowing = false; }
+                    });
+                }
+                
+                let now = Date.now();
+                if (now - lastPlay > 4000) { alertAudio.play(); lastPlay = now; }
+                
+                document.body.classList.add('flash-red');
+                return Math.max(45, currentSpeed - 0.4);
+            } else {
+                document.body.classList.remove('flash-red');
+                return Math.min(110, currentSpeed + 0.2);
+            }
+        }
+    </script>
+</body>
+</html>
